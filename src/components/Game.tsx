@@ -544,7 +544,7 @@ const Game: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      className="relative w-full h-auto max-w-5xl max-h-[70vh] sm:max-h-[80vh] mx-auto bg-black sm:rounded-2xl overflow-hidden shadow-2xl sm:border-4 border-zinc-800 touch-none select-none aspect-video"
+      className="relative w-full h-auto max-w-5xl mx-auto bg-black sm:rounded-2xl overflow-hidden shadow-2xl sm:border-4 border-zinc-800 touch-none select-none aspect-video max-h-[90vh]"
     >
       {/* UI Overlay */}
       <div className="absolute top-0 left-0 w-full p-4 sm:p-6 flex justify-between items-start pointer-events-none z-10">
@@ -616,8 +616,8 @@ const Game: React.FC = () => {
         className="w-full h-auto block bg-zinc-900"
       />
 
-      {/* Touch Controls - Visible on touch devices (hidden on non-touch desktop) */}
-      <div className="absolute inset-0 pointer-events-none z-30 xl:hidden">
+      {/* Touch Controls - Visible on touch devices (mobile/tablet), hidden on desktop */}
+      <div className="absolute inset-0 pointer-events-none z-30 [@media(hover:hover)]:hidden block">
         {/* Floating Joystick Visual P1 */}
         {joystick1 && (
           <div className="absolute pointer-events-none" style={{ left: joystick1.base.x - 40, top: joystick1.base.y - 40 }}>

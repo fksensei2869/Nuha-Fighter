@@ -47,8 +47,8 @@ export default function App() {
         <Game />
       </div>
 
-      {/* Rotation Prompt for Mobile Portrait ONLY (Hidden on tablets/desktop) */}
-      <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-6 text-center md:hidden portrait:flex landscape:hidden pointer-events-auto">
+      {/* Rotation Prompt for Mobile Phones in Portrait ONLY */}
+      <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-6 text-center sm:portrait:flex hidden landscape:hidden pointer-events-auto">
         <div className="w-24 h-24 mb-6 animate-bounce">
           <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
@@ -58,7 +58,7 @@ export default function App() {
           </svg>
         </div>
         <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-2">Rotate for Battle</h2>
-        <p className="text-zinc-400 text-sm uppercase tracking-widest">Landscape mode recommended for mobile phones</p>
+        <p className="text-zinc-400 text-sm uppercase tracking-widest">Landscape mode recommended for phones</p>
       </div>
       
       <footer className="mt-8 text-zinc-600 text-[10px] uppercase tracking-[0.2em]">
