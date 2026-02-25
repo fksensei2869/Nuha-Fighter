@@ -118,7 +118,20 @@ const Game: React.FC = () => {
   const [p2Special, setP2Special] = useState(0);
   const [p1Combo, setP1Combo] = useState(0);
   const [p2Combo, setP2Combo] = useState(0);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [timer, setTimer] = useState(99);
+
+  useEffect(() => {
+    const detectTouch = () => {
+      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth < 1024;
+      const isCoarse = window.matchMedia("(pointer: coarse)").matches;
+      setIsTouchDevice(hasTouch || isSmallScreen || isCoarse);
+    };
+    detectTouch();
+    window.addEventListener('resize', detectTouch);
+    return () => window.removeEventListener('resize', detectTouch);
+  }, []);
   const [sparks, setSparks] = useState<{x: number, y: number, life: number}[]>([]);
 
   // Joystick state
@@ -616,78 +629,80 @@ const Game: React.FC = () => {
         className="w-full h-auto block bg-zinc-900"
       />
 
-      {/* Touch Controls - Visible on touch devices (mobile/tablet), hidden on desktop */}
-      <div className="absolute inset-0 pointer-events-none z-30 [@media(hover:hover)]:hidden block">
-        {/* Floating Joystick Visual P1 */}
-        {joystick1 && (
-          <div className="absolute pointer-events-none" style={{ left: joystick1.base.x - 40, top: joystick1.base.y - 40 }}>
-            <div className="w-[80px] h-[80px] rounded-full border-2 border-blue-500/20 bg-blue-500/5 flex items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-blue-400/40 shadow-lg" style={{ transform: `translate(${joystick1.knob.x - joystick1.base.x}px, ${joystick1.knob.y - joystick1.base.y}px)` }} />
+      {/* Touch Controls - Visible on touch devices (mobile/tablet), hidden on non-touch desktop */}
+      {isTouchDevice && (
+        <div className="absolute inset-0 pointer-events-none z-50">
+          {/* Floating Joystick Visual P1 */}
+          {joystick1 && (
+            <div className="absolute pointer-events-none" style={{ left: joystick1.base.x - 40, top: joystick1.base.y - 40 }}>
+              <div className="w-[80px] h-[80px] rounded-full border-2 border-blue-500/40 bg-blue-500/10 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                <div className="w-10 h-10 rounded-full bg-blue-400/60 shadow-lg" style={{ transform: `translate(${joystick1.knob.x - joystick1.base.x}px, ${joystick1.knob.y - joystick1.base.y}px)` }} />
+              </div>
+            </div>
+          )}
+
+          {/* Floating Joystick Visual P2 */}
+          {joystick2 && (
+            <div className="absolute pointer-events-none" style={{ left: joystick2.base.x - 40, top: joystick2.base.y - 40 }}>
+              <div className="w-[80px] h-[80px] rounded-full border-2 border-red-500/40 bg-red-500/10 flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+                <div className="w-10 h-10 rounded-full bg-red-400/60 shadow-lg" style={{ transform: `translate(${joystick2.knob.x - joystick2.base.x}px, ${joystick2.knob.y - joystick2.base.y}px)` }} />
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons P1 (Bottom Far Left) */}
+          <div className="absolute bottom-6 left-6 sm:bottom-8 sm:left-8 flex gap-2 pointer-events-auto">
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('f', true); } }} 
+                onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('f', false); } }}
+                className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-500/50 backdrop-blur-md border-2 border-blue-400 rounded-full flex items-center justify-center text-white active:bg-blue-600 font-black text-xl shadow-2xl"
+              >P</button>
+              <button 
+                onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('g', true); } }} 
+                onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('g', false); } }}
+                className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-500/50 backdrop-blur-md border-2 border-blue-400 rounded-full flex items-center justify-center text-white active:bg-blue-600 font-black text-xl shadow-2xl"
+              >K</button>
+              <button 
+                onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('v', true); } }} 
+                onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('v', false); } }}
+                className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-500/50 backdrop-blur-md border-2 border-blue-400 rounded-full flex items-center justify-center text-white active:bg-blue-600 font-black text-xl shadow-2xl"
+              >B</button>
+              <button 
+                onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('r', true); } }} 
+                onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('r', false); } }}
+                className={`w-14 h-14 sm:w-16 sm:h-16 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-xs shadow-2xl ${p1Special >= 100 ? 'bg-yellow-500 border-yellow-300 text-white animate-pulse shadow-[0_0_20px_rgba(234,179,8,0.6)]' : 'bg-white/20 border-white/30 text-white/60'}`}
+              >SP</button>
             </div>
           </div>
-        )}
 
-        {/* Floating Joystick Visual P2 */}
-        {joystick2 && (
-          <div className="absolute pointer-events-none" style={{ left: joystick2.base.x - 40, top: joystick2.base.y - 40 }}>
-            <div className="w-[80px] h-[80px] rounded-full border-2 border-red-500/20 bg-red-500/5 flex items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-red-400/40 shadow-lg" style={{ transform: `translate(${joystick2.knob.x - joystick2.base.x}px, ${joystick2.knob.y - joystick2.base.y}px)` }} />
+          {/* Action Buttons P2 (Bottom Far Right) */}
+          <div className="absolute bottom-6 right-6 sm:bottom-8 sm:right-8 flex gap-2 pointer-events-auto">
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('k', true); } }} 
+                onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('k', false); } }}
+                className="w-14 h-14 sm:w-16 sm:h-16 bg-red-500/50 backdrop-blur-md border-2 border-red-400 rounded-full flex items-center justify-center text-white active:bg-red-600 font-black text-xl shadow-2xl"
+              >P</button>
+              <button 
+                onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('l', true); } }} 
+                onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('l', false); } }}
+                className="w-14 h-14 sm:w-16 sm:h-16 bg-red-500/50 backdrop-blur-md border-2 border-red-400 rounded-full flex items-center justify-center text-white active:bg-red-600 font-black text-xl shadow-2xl"
+              >K</button>
+              <button 
+                onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('m', true); } }} 
+                onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('m', false); } }}
+                className="w-14 h-14 sm:w-16 sm:h-16 bg-red-500/50 backdrop-blur-md border-2 border-red-400 rounded-full flex items-center justify-center text-white active:bg-red-600 font-black text-xl shadow-2xl"
+              >B</button>
+              <button 
+                onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('p', true); } }} 
+                onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('p', false); } }}
+                className={`w-14 h-14 sm:w-16 sm:h-16 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-xs shadow-2xl ${p2Special >= 100 ? 'bg-yellow-500 border-yellow-300 text-white animate-pulse shadow-[0_0_20px_rgba(234,179,8,0.6)]' : 'bg-white/20 border-white/30 text-white/60'}`}
+              >SP</button>
             </div>
           </div>
-        )}
-
-        {/* Action Buttons P1 (Bottom Far Left) */}
-        <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 flex gap-2 pointer-events-auto">
-          <div className="grid grid-cols-2 gap-2">
-            <button 
-              onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('f', true); } }} 
-              onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('f', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/40 backdrop-blur-md border-2 border-blue-500/60 rounded-full flex items-center justify-center text-blue-100 active:bg-blue-500 font-black text-lg sm:text-xl shadow-xl"
-            >P</button>
-            <button 
-              onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('g', true); } }} 
-              onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('g', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/40 backdrop-blur-md border-2 border-blue-500/60 rounded-full flex items-center justify-center text-blue-100 active:bg-blue-500 font-black text-lg sm:text-xl shadow-xl"
-            >K</button>
-            <button 
-              onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('v', true); } }} 
-              onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('v', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/40 backdrop-blur-md border-2 border-blue-500/60 rounded-full flex items-center justify-center text-blue-100 active:bg-blue-500 font-black text-lg sm:text-xl shadow-xl"
-            >B</button>
-            <button 
-              onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('r', true); } }} 
-              onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('r', false); } }}
-              className={`w-12 h-12 sm:w-14 sm:h-14 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-[10px] sm:text-xs shadow-xl ${p1Special >= 100 ? 'bg-yellow-500/60 border-yellow-400 text-yellow-100 animate-pulse' : 'bg-white/10 border-white/20 text-white/40'}`}
-            >SP</button>
-          </div>
         </div>
-
-        {/* Action Buttons P2 (Bottom Far Right) */}
-        <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 flex gap-2 pointer-events-auto">
-          <div className="grid grid-cols-2 gap-2">
-            <button 
-              onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('k', true); } }} 
-              onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('k', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/40 backdrop-blur-md border-2 border-red-500/60 rounded-full flex items-center justify-center text-red-100 active:bg-red-500 font-black text-lg sm:text-xl shadow-xl"
-            >P</button>
-            <button 
-              onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('l', true); } }} 
-              onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('l', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/40 backdrop-blur-md border-2 border-red-500/60 rounded-full flex items-center justify-center text-red-100 active:bg-red-500 font-black text-lg sm:text-xl shadow-xl"
-            >K</button>
-            <button 
-              onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('m', true); } }} 
-              onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('m', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/40 backdrop-blur-md border-2 border-red-500/60 rounded-full flex items-center justify-center text-red-100 active:bg-red-500 font-black text-lg sm:text-xl shadow-xl"
-            >B</button>
-            <button 
-              onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('p', true); } }} 
-              onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('p', false); } }}
-              className={`w-12 h-12 sm:w-14 sm:h-14 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-[10px] sm:text-xs shadow-xl ${p2Special >= 100 ? 'bg-yellow-500/60 border-yellow-400 text-yellow-100 animate-pulse' : 'bg-white/10 border-white/20 text-white/40'}`}
-            >SP</button>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Game Over Screen */}
       {gameOver && (
