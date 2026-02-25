@@ -544,7 +544,7 @@ const Game: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      className="relative w-full h-auto max-w-5xl mx-auto bg-black sm:rounded-2xl overflow-hidden shadow-2xl sm:border-4 border-zinc-800 touch-none select-none aspect-video"
+      className="relative w-full h-auto max-w-5xl max-h-[70vh] sm:max-h-[80vh] mx-auto bg-black sm:rounded-2xl overflow-hidden shadow-2xl sm:border-4 border-zinc-800 touch-none select-none aspect-video"
     >
       {/* UI Overlay */}
       <div className="absolute top-0 left-0 w-full p-4 sm:p-6 flex justify-between items-start pointer-events-none z-10">
@@ -616,7 +616,7 @@ const Game: React.FC = () => {
         className="w-full h-auto block bg-zinc-900"
       />
 
-      {/* Touch Controls - Visible on mobile/tablet (hidden on large desktop) */}
+      {/* Touch Controls - Visible on touch devices (hidden on non-touch desktop) */}
       <div className="absolute inset-0 pointer-events-none z-30 xl:hidden">
         {/* Floating Joystick Visual P1 */}
         {joystick1 && (
@@ -691,16 +691,16 @@ const Game: React.FC = () => {
 
       {/* Game Over Screen */}
       {gameOver && (
-        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-sm pointer-events-auto">
-          <Trophy className="text-yellow-500 w-20 h-20 mb-4 animate-bounce" />
-          <h2 className="text-6xl font-black text-white italic uppercase tracking-tighter mb-8">
+        <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-[100] backdrop-blur-md pointer-events-auto">
+          <Trophy className="text-yellow-500 w-16 h-16 sm:w-20 sm:h-20 mb-4 animate-bounce" />
+          <h2 className="text-3xl sm:text-6xl font-black text-white italic uppercase tracking-tighter mb-8 text-center px-4">
             {gameOver}
           </h2>
           <button
             onClick={resetGame}
-            className="flex items-center gap-2 bg-white text-black px-8 py-4 rounded-full font-bold hover:bg-yellow-400 transition-colors uppercase tracking-widest"
+            className="group relative px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black uppercase italic tracking-widest rounded-full transition-all hover:scale-110 active:scale-95 shadow-[0_0_30px_rgba(220,38,38,0.5)] flex items-center gap-3"
           >
-            <RotateCcw size={20} />
+            <RotateCcw className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
             Rematch
           </button>
         </div>
