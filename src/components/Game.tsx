@@ -182,13 +182,13 @@ const Game: React.FC = () => {
         const x = touch.clientX - rect.left;
         const y = touch.clientY - rect.top;
 
-        // P1 Joystick Zone (Left-Center)
-        if (x > rect.width * 0.15 && x < rect.width * 0.45 && joystick1TouchId.current === null) {
+        {/* P1 Joystick Zone (Left-Center) */}
+        if (x > rect.width * 0.1 && x < rect.width * 0.4 && joystick1TouchId.current === null) {
           joystick1TouchId.current = touch.identifier;
           setJoystick1({ base: { x, y }, knob: { x, y } });
         }
-        // P2 Joystick Zone (Far Right)
-        else if (x > rect.width * 0.75 && joystick2TouchId.current === null) {
+        // P2 Joystick Zone (Right-Center)
+        else if (x > rect.width * 0.6 && x < rect.width * 0.9 && joystick2TouchId.current === null) {
           joystick2TouchId.current = touch.identifier;
           setJoystick2({ base: { x, y }, knob: { x, y } });
         }
@@ -544,7 +544,7 @@ const Game: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      className="relative w-full max-w-5xl mx-auto bg-black rounded-2xl overflow-hidden shadow-2xl border-4 border-zinc-800 touch-none select-none"
+      className="relative w-full h-auto max-w-5xl mx-auto bg-black sm:rounded-2xl overflow-hidden shadow-2xl sm:border-4 border-zinc-800 touch-none select-none aspect-video"
     >
       {/* UI Overlay */}
       <div className="absolute top-0 left-0 w-full p-4 sm:p-6 flex justify-between items-start pointer-events-none z-10">
@@ -616,8 +616,8 @@ const Game: React.FC = () => {
         className="w-full h-auto block bg-zinc-900"
       />
 
-      {/* Touch Controls - Visible on mobile/tablet */}
-      <div className="absolute inset-0 pointer-events-none z-30 lg:hidden">
+      {/* Touch Controls - Visible on mobile/tablet (hidden on large desktop) */}
+      <div className="absolute inset-0 pointer-events-none z-30 xl:hidden">
         {/* Floating Joystick Visual P1 */}
         {joystick1 && (
           <div className="absolute pointer-events-none" style={{ left: joystick1.base.x - 40, top: joystick1.base.y - 40 }}>
@@ -637,53 +637,53 @@ const Game: React.FC = () => {
         )}
 
         {/* Action Buttons P1 (Bottom Far Left) */}
-        <div className="absolute bottom-6 left-6 flex gap-2 pointer-events-auto">
+        <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 flex gap-2 pointer-events-auto">
           <div className="grid grid-cols-2 gap-2">
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('f', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('f', false); } }}
-              className="w-14 h-14 bg-blue-500/20 backdrop-blur-md border-2 border-blue-500/40 rounded-full flex items-center justify-center text-blue-200 active:bg-blue-500 font-black text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/20 backdrop-blur-md border-2 border-blue-500/40 rounded-full flex items-center justify-center text-blue-200 active:bg-blue-500 font-black text-lg sm:text-xl shadow-lg"
             >P</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('g', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('g', false); } }}
-              className="w-14 h-14 bg-blue-500/20 backdrop-blur-md border-2 border-blue-500/40 rounded-full flex items-center justify-center text-blue-200 active:bg-blue-500 font-black text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/20 backdrop-blur-md border-2 border-blue-500/40 rounded-full flex items-center justify-center text-blue-200 active:bg-blue-500 font-black text-lg sm:text-xl shadow-lg"
             >K</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('v', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('v', false); } }}
-              className="w-14 h-14 bg-blue-500/20 backdrop-blur-md border-2 border-blue-500/40 rounded-full flex items-center justify-center text-blue-200 active:bg-blue-500 font-black text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/20 backdrop-blur-md border-2 border-blue-500/40 rounded-full flex items-center justify-center text-blue-200 active:bg-blue-500 font-black text-lg sm:text-xl shadow-lg"
             >B</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('r', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('r', false); } }}
-              className={`w-14 h-14 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-xs shadow-lg ${p1Special >= 100 ? 'bg-yellow-500/40 border-yellow-400 text-yellow-100 animate-pulse' : 'bg-white/5 border-white/10 text-white/20'}`}
+              className={`w-12 h-12 sm:w-14 sm:h-14 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-[10px] sm:text-xs shadow-lg ${p1Special >= 100 ? 'bg-yellow-500/40 border-yellow-400 text-yellow-100 animate-pulse' : 'bg-white/5 border-white/10 text-white/20'}`}
             >SP</button>
           </div>
         </div>
 
-        {/* Action Buttons P2 (Bottom Right-Center) */}
-        <div className="absolute bottom-6 right-[28%] flex gap-2 pointer-events-auto">
+        {/* Action Buttons P2 (Bottom Far Right) */}
+        <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 flex gap-2 pointer-events-auto">
           <div className="grid grid-cols-2 gap-2">
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('k', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('k', false); } }}
-              className="w-14 h-14 bg-red-500/20 backdrop-blur-md border-2 border-red-500/40 rounded-full flex items-center justify-center text-red-200 active:bg-red-500 font-black text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/20 backdrop-blur-md border-2 border-red-500/40 rounded-full flex items-center justify-center text-red-200 active:bg-red-500 font-black text-lg sm:text-xl shadow-lg"
             >P</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('l', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('l', false); } }}
-              className="w-14 h-14 bg-red-500/20 backdrop-blur-md border-2 border-red-500/40 rounded-full flex items-center justify-center text-red-200 active:bg-red-500 font-black text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/20 backdrop-blur-md border-2 border-red-500/40 rounded-full flex items-center justify-center text-red-200 active:bg-red-500 font-black text-lg sm:text-xl shadow-lg"
             >K</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('m', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('m', false); } }}
-              className="w-14 h-14 bg-red-500/20 backdrop-blur-md border-2 border-red-500/40 rounded-full flex items-center justify-center text-red-200 active:bg-red-500 font-black text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/20 backdrop-blur-md border-2 border-red-500/40 rounded-full flex items-center justify-center text-red-200 active:bg-red-500 font-black text-lg sm:text-xl shadow-lg"
             >B</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('p', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('p', false); } }}
-              className={`w-14 h-14 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-xs shadow-lg ${p2Special >= 100 ? 'bg-yellow-500/40 border-yellow-400 text-yellow-100 animate-pulse' : 'bg-white/5 border-white/10 text-white/20'}`}
+              className={`w-12 h-12 sm:w-14 sm:h-14 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-[10px] sm:text-xs shadow-lg ${p2Special >= 100 ? 'bg-yellow-500/40 border-yellow-400 text-yellow-100 animate-pulse' : 'bg-white/5 border-white/10 text-white/20'}`}
             >SP</button>
           </div>
         </div>
