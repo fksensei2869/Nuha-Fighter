@@ -544,7 +544,7 @@ const Game: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      className="relative w-full h-auto max-w-5xl mx-auto bg-black sm:rounded-2xl overflow-hidden shadow-2xl sm:border-4 border-zinc-800 touch-none select-none aspect-video max-h-[90vh]"
+      className="relative w-full h-auto max-w-5xl mx-auto bg-black sm:rounded-2xl overflow-hidden shadow-2xl sm:border-4 border-zinc-800 touch-none select-none aspect-video max-h-[85vh] landscape:max-h-[95vh] sm:landscape:max-h-none"
     >
       {/* UI Overlay */}
       <div className="absolute top-0 left-0 w-full p-4 sm:p-6 flex justify-between items-start pointer-events-none z-10">
@@ -642,22 +642,22 @@ const Game: React.FC = () => {
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('f', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('f', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/20 backdrop-blur-md border-2 border-blue-500/40 rounded-full flex items-center justify-center text-blue-200 active:bg-blue-500 font-black text-lg sm:text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/40 backdrop-blur-md border-2 border-blue-500/60 rounded-full flex items-center justify-center text-blue-100 active:bg-blue-500 font-black text-lg sm:text-xl shadow-xl"
             >P</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('g', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('g', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/20 backdrop-blur-md border-2 border-blue-500/40 rounded-full flex items-center justify-center text-blue-200 active:bg-blue-500 font-black text-lg sm:text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/40 backdrop-blur-md border-2 border-blue-500/60 rounded-full flex items-center justify-center text-blue-100 active:bg-blue-500 font-black text-lg sm:text-xl shadow-xl"
             >K</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('v', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('v', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/20 backdrop-blur-md border-2 border-blue-500/40 rounded-full flex items-center justify-center text-blue-200 active:bg-blue-500 font-black text-lg sm:text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500/40 backdrop-blur-md border-2 border-blue-500/60 rounded-full flex items-center justify-center text-blue-100 active:bg-blue-500 font-black text-lg sm:text-xl shadow-xl"
             >B</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('r', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('r', false); } }}
-              className={`w-12 h-12 sm:w-14 sm:h-14 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-[10px] sm:text-xs shadow-lg ${p1Special >= 100 ? 'bg-yellow-500/40 border-yellow-400 text-yellow-100 animate-pulse' : 'bg-white/5 border-white/10 text-white/20'}`}
+              className={`w-12 h-12 sm:w-14 sm:h-14 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-[10px] sm:text-xs shadow-xl ${p1Special >= 100 ? 'bg-yellow-500/60 border-yellow-400 text-yellow-100 animate-pulse' : 'bg-white/10 border-white/20 text-white/40'}`}
             >SP</button>
           </div>
         </div>
@@ -668,22 +668,22 @@ const Game: React.FC = () => {
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('k', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('k', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/20 backdrop-blur-md border-2 border-red-500/40 rounded-full flex items-center justify-center text-red-200 active:bg-red-500 font-black text-lg sm:text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/40 backdrop-blur-md border-2 border-red-500/60 rounded-full flex items-center justify-center text-red-100 active:bg-red-500 font-black text-lg sm:text-xl shadow-xl"
             >P</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('l', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('l', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/20 backdrop-blur-md border-2 border-red-500/40 rounded-full flex items-center justify-center text-red-200 active:bg-red-500 font-black text-lg sm:text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/40 backdrop-blur-md border-2 border-red-500/60 rounded-full flex items-center justify-center text-red-100 active:bg-red-500 font-black text-lg sm:text-xl shadow-xl"
             >K</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('m', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('m', false); } }}
-              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/20 backdrop-blur-md border-2 border-red-500/40 rounded-full flex items-center justify-center text-red-200 active:bg-red-500 font-black text-lg sm:text-xl shadow-lg"
+              className="w-12 h-12 sm:w-14 sm:h-14 bg-red-500/40 backdrop-blur-md border-2 border-red-500/60 rounded-full flex items-center justify-center text-red-100 active:bg-red-500 font-black text-lg sm:text-xl shadow-xl"
             >B</button>
             <button 
               onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('p', true); } }} 
               onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('p', false); } }}
-              className={`w-12 h-12 sm:w-14 sm:h-14 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-[10px] sm:text-xs shadow-lg ${p2Special >= 100 ? 'bg-yellow-500/40 border-yellow-400 text-yellow-100 animate-pulse' : 'bg-white/5 border-white/10 text-white/20'}`}
+              className={`w-12 h-12 sm:w-14 sm:h-14 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-[10px] sm:text-xs shadow-xl ${p2Special >= 100 ? 'bg-yellow-500/60 border-yellow-400 text-yellow-100 animate-pulse' : 'bg-white/10 border-white/20 text-white/40'}`}
             >SP</button>
           </div>
         </div>
