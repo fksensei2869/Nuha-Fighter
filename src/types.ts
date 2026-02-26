@@ -8,6 +8,22 @@ export interface Vector {
   y: number;
 }
 
+export interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  color: string;
+}
+
+export interface DamagePopUp {
+  x: number;
+  y: number;
+  damage: number;
+  life: number;
+}
+
 export interface Dimensions {
   width: number;
   height: number;
@@ -24,7 +40,20 @@ export enum PlayerState {
   SPECIAL = 'SPECIAL',
   BLOCKING = 'BLOCKING',
   HIT = 'HIT',
-  DEAD = 'DEAD'
+  DEAD = 'DEAD',
+  WIN = 'WIN'
+}
+
+export enum AttackPhase {
+  STARTUP = 'STARTUP',
+  ACTIVE = 'ACTIVE',
+  RECOVERY = 'RECOVERY',
+  NONE = 'NONE'
+}
+
+export interface InputRecord {
+  key: string;
+  timestamp: number;
 }
 
 export interface FighterConfig {
@@ -42,4 +71,8 @@ export interface FighterConfig {
     special: string;
   };
   facing: 'left' | 'right';
+  spriteImage: HTMLImageElement;
+  frameWidth?: number;
+  frameHeight?: number;
+  targetHeight?: number;
 }

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Fighter } from '../Fighter';
-import { PlayerState } from '../types';
-import { Trophy, RotateCcw, Zap, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield } from 'lucide-react';
+import { PlayerState, AttackPhase, Particle, DamagePopUp } from '../types';
+import { Trophy, RotateCcw, Zap, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, User, Users, Home } from 'lucide-react';
+import { GameState, GameMode, Difficulty, DIFFICULTY_SETTINGS } from '../gameConstants';
 
 const CANVAS_WIDTH = 1024;
 const CANVAS_HEIGHT = 576;
@@ -111,15 +112,77 @@ const music = new MusicPlayer();
 const Game: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [gameState, setGameState] = useState<GameState>('modeSelect');
+  const [gameMode, setGameMode] = useState<GameMode>('2P');
+  const [aiDifficulty, setAiDifficulty] = useState<Difficulty>('Medium');
   const [gameOver, setGameOver] = useState<string | null>(null);
   const [p1Health, setP1Health] = useState(100);
   const [p2Health, setP2Health] = useState(100);
-  const [p1Special, setP1Special] = useState(0);
-  const [p2Special, setP2Special] = useState(0);
+  const [p1SM, setP1SM] = useState(0);
+  const [p2SM, setP2SM] = useState(0);
   const [p1Combo, setP1Combo] = useState(0);
   const [p2Combo, setP2Combo] = useState(0);
+  const [p1SpecialActive, setP1SpecialActive] = useState(false);
+  const [p2SpecialActive, setP2SpecialActive] = useState(false);
+  const [p1DamageTrail, setP1DamageTrail] = useState(100);
+  const [p2DamageTrail, setP2DamageTrail] = useState(100);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [damagePopUps, setDamagePopUps] = useState<DamagePopUp[]>([]);
+  const [screenShake, setScreenShake] = useState(0);
+  const [cameraZoom, setCameraZoom] = useState(1);
+  const [roundIntro, setRoundIntro] = useState<string | null>(null);
+  const [fightSplash, setFightSplash] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [parallaxX, setParallaxX] = useState(0);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [timer, setTimer] = useState(99);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+
+  const images = useRef<{ p1: HTMLImageElement; p2: HTMLImageElement; bg: HTMLImageElement } | null>(null);
+
+  useEffect(() => {
+    const p1Img = new Image();
+    const p2Img = new Image();
+    const bgImg = new Image();
+
+    let loadedCount = 0;
+    const onImageLoad = () => {
+      loadedCount++;
+      if (loadedCount === 3) {
+        images.current = { p1: p1Img, p2: p2Img, bg: bgImg };
+        setImagesLoaded(true);
+      }
+    };
+
+    const onImageError = (e: any) => {
+      console.error('Failed to load image, using fallback', e);
+      // Even if it fails, we want to proceed with whatever we have or just set it to true to allow play
+      // In a real app, you'd have local fallbacks
+      loadedCount++;
+      if (loadedCount === 3) {
+        images.current = { p1: p1Img, p2: p2Img, bg: bgImg };
+        setImagesLoaded(true);
+      }
+    };
+
+    p1Img.crossOrigin = 'anonymous';
+    p2Img.crossOrigin = 'anonymous';
+    bgImg.crossOrigin = 'anonymous';
+
+    p1Img.onload = onImageLoad;
+    p1Img.onerror = onImageError;
+    p2Img.onload = onImageLoad;
+    p2Img.onerror = onImageError;
+    bgImg.onload = onImageLoad;
+    bgImg.onerror = onImageError;
+
+    // Using high-quality placeholders for now. 
+    // User should replace these with their actual sprite URLs.
+    p1Img.src = 'https://raw.githubusercontent.com/fksensei2869/Nuha-Fighter/refs/heads/main/public/HangTuahfixed1.png';
+    p2Img.src = 'https://raw.githubusercontent.com/fksensei2869/Nuha-Fighter/refs/heads/main/public/HangJebatfixed1.png';
+    bgImg.src = 'https://raw.githubusercontent.com/fksensei2869/Nuha-Fighter/main/public/A_cinematic_2d_fighting_game_background_stage_a_tr_delpmaspu.png';
+  }, []);
 
   useEffect(() => {
     const detectTouch = () => {
@@ -144,11 +207,15 @@ const Game: React.FC = () => {
   const keysPressed = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    if (!imagesLoaded || !images.current) return;
+
     const p1 = new Fighter({
       id: 1,
       position: { x: 150, y: 0 },
       color: '#3b82f6', // Blue
       facing: 'right',
+      spriteImage: images.current.p1,
+      targetHeight: 300,
       keys: {
         up: 'w',
         down: 's',
@@ -166,6 +233,8 @@ const Game: React.FC = () => {
       position: { x: 800, y: 0 },
       color: '#ef4444', // Red
       facing: 'left',
+      spriteImage: images.current.p2,
+      targetHeight: 300,
       keys: {
         up: 'ArrowUp',
         down: 'ArrowDown',
@@ -179,13 +248,22 @@ const Game: React.FC = () => {
     });
 
     fightersRef.current = { p1, p2 };
-    speak("Fight!", () => music.start());
+    
+    if (gameState === 'playing' && !gameOver) {
+      setRoundIntro('ROUND 1');
+      setTimeout(() => {
+        setRoundIntro(null);
+        setFightSplash(true);
+        speak("Fight!", () => music.start());
+        setTimeout(() => setFightSplash(false), 1000);
+      }, 2000);
+    }
 
     const handleKeyDown = (e: KeyboardEvent) => keysPressed.current.add(e.key);
     const handleKeyUp = (e: KeyboardEvent) => keysPressed.current.delete(e.key);
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (gameOver) return;
+      if (gameState !== 'playing' || gameOver) return;
       e.preventDefault();
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -209,7 +287,7 @@ const Game: React.FC = () => {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (gameOver) return;
+      if (gameState !== 'playing' || gameOver) return;
       e.preventDefault();
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -274,7 +352,7 @@ const Game: React.FC = () => {
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      if (gameOver) return;
+      if (gameState !== 'playing' || gameOver) return;
       e.preventDefault();
       for (let i = 0; i < e.changedTouches.length; i++) {
         const touch = e.changedTouches[i];
@@ -308,114 +386,189 @@ const Game: React.FC = () => {
     let lastTime = 0;
     let timerInterval: any;
 
-    const gameLoop = (time: number) => {
-      const ctx = canvasRef.current?.getContext('2d');
-      if (!ctx || !fightersRef.current) return;
+  const createParticles = (x: number, y: number, color: string) => {
+    const newParticles: Particle[] = [];
+    for (let i = 0; i < 8; i++) {
+      newParticles.push({
+        x,
+        y,
+        vx: (Math.random() - 0.5) * 10,
+        vy: (Math.random() - 0.5) * 10,
+        life: 20 + Math.random() * 20,
+        color
+      });
+    }
+    setParticles(prev => [...prev, ...newParticles]);
+  };
 
-      const { p1, p2 } = fightersRef.current;
+  const createDamagePopUp = (x: number, y: number, damage: number) => {
+    setDamagePopUps(prev => [...prev, { x, y: y - 50, damage, life: 40 }]);
+  };
 
-      // Update
-      if (!gameOver) {
-        p1.update(CANVAS_HEIGHT, keysPressed.current, p2);
-        p2.update(CANVAS_HEIGHT, keysPressed.current, p1);
+  const gameLoop = (time: number) => {
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx || !fightersRef.current || isPaused) {
+      animationFrameId = requestAnimationFrame(gameLoop);
+      return;
+    }
 
-        // Collision Detection
-        if (p1.isAttacking && rectangularCollision(p1, p2)) {
-          p1.isAttacking = false;
-          const isJumping = p1.position.y + p1.height < 550;
+    const { p1, p2 } = fightersRef.current;
+
+    // AI Logic for P2 in 1P mode
+    if (gameMode === '1P' && !gameOver && gameState === 'playing' && !roundIntro) {
+      updateAI(p2, p1);
+    }
+
+    // Update
+    if (!gameOver && gameState === 'playing' && !roundIntro) {
+      p1.update(CANVAS_HEIGHT, keysPressed.current, p2);
+      p2.update(CANVAS_HEIGHT, keysPressed.current, p1);
+
+      // Parallax effect based on player average position
+      const avgX = (p1.position.x + p2.position.x) / 2;
+      setParallaxX((avgX - CANVAS_WIDTH / 2) * 0.05);
+
+      // Collision Detection
+      if (p1.attackPhase === AttackPhase.ACTIVE && rectangularCollision(p1, p2)) {
+        if (p1.attackFrame === (p1.state === PlayerState.SPECIAL ? 16 : 5)) {
+          const isJumping = p1.position.y + p1.height < CANVAS_HEIGHT - 120;
           let damage = 0;
           
-          if (p1.state === PlayerState.SPECIAL) damage = 40; // Super Move Damage
+          if (p1.state === PlayerState.SPECIAL) {
+            damage = 40;
+            setScreenShake(10);
+            setCameraZoom(1.1);
+            setTimeout(() => setCameraZoom(1), 200);
+          }
           else if (p1.state === PlayerState.PUNCHING) damage = isJumping ? 7 : 5;
           else if (p1.state === PlayerState.KICKING) damage = isJumping ? 10 : 8;
           
-          // Combo bonus
           p1.registerHit();
-          if (p1.comboCount > 1) {
-            damage += p1.comboCount * 2;
-          }
+          if (p1.comboCount > 1) damage += Math.min(p1.comboCount * 0.5, 10);
+          damage = Math.round(damage);
           
           p2.takeHit(damage, p1.position.x);
           setP2Health(p2.health);
           setP1Combo(p1.comboCount);
-          createSparks(p2.position.x + p2.width/2, p2.position.y + p2.height/2);
+          createParticles(p2.position.x + p2.width/2, p2.position.y + p2.height/2, '#fff');
+          createDamagePopUp(p2.position.x + p2.width/2, p2.position.y, damage);
+          if (damage > 10) setScreenShake(5);
         }
+      }
 
-        if (p2.isAttacking && rectangularCollision(p2, p1)) {
-          p2.isAttacking = false;
-          const isJumping = p2.position.y + p2.height < 550;
+      if (p2.attackPhase === AttackPhase.ACTIVE && rectangularCollision(p2, p1)) {
+        if (p2.attackFrame === (p2.state === PlayerState.SPECIAL ? 16 : 5)) {
+          const isJumping = p2.position.y + p2.height < CANVAS_HEIGHT - 120;
           let damage = 0;
           
-          if (p2.state === PlayerState.SPECIAL) damage = 40; // Super Move Damage
+          if (p2.state === PlayerState.SPECIAL) {
+            damage = 40;
+            setScreenShake(10);
+            setCameraZoom(1.1);
+            setTimeout(() => setCameraZoom(1), 200);
+          }
           else if (p2.state === PlayerState.PUNCHING) damage = isJumping ? 7 : 5;
           else if (p2.state === PlayerState.KICKING) damage = isJumping ? 10 : 8;
           
-          // Combo bonus
           p2.registerHit();
-          if (p2.comboCount > 1) {
-            damage += p2.comboCount * 2;
-          }
+          if (p2.comboCount > 1) damage += Math.min(p2.comboCount * 0.5, 10);
+          damage = Math.round(damage);
           
           p1.takeHit(damage, p2.position.x);
           setP1Health(p1.health);
           setP2Combo(p2.comboCount);
-          createSparks(p1.position.x + p1.width/2, p1.position.y + p1.height/2);
+          createParticles(p1.position.x + p1.width/2, p1.position.y + p1.height/2, '#fff');
+          createDamagePopUp(p1.position.x + p1.width/2, p1.position.y, damage);
+          if (damage > 10) setScreenShake(5);
         }
-
-        setP1Special(p1.specialMeter);
-        setP2Special(p2.specialMeter);
-        setP1Combo(p1.comboCount);
-        setP2Combo(p2.comboCount);
-
-        // Win Condition
-        if (p1.health <= 0) {
-          setGameOver('Scarlet Strike Wins!');
-          speak('Scarlet Strike Wins!');
-          music.stop();
-        }
-        if (p2.health <= 0) {
-          setGameOver('Blue Bolt Wins!');
-          speak('Blue Bolt Wins!');
-          music.stop();
-        }
-      } else {
-        // Still update physics but with no input after game over
-        p1.update(CANVAS_HEIGHT, new Set(), p2);
-        p2.update(CANVAS_HEIGHT, new Set(), p1);
       }
 
-      // Update sparks (always animate)
-      setSparks(prev => prev.map(s => ({ ...s, life: s.life - 1 })).filter(s => s.life > 0));
+      if (p1.state === PlayerState.SPECIAL && p1.attackFrame === 1) {
+        setP1SpecialActive(true);
+        setTimeout(() => setP1SpecialActive(false), 1000);
+      }
+      if (p2.state === PlayerState.SPECIAL && p2.attackFrame === 1) {
+        setP2SpecialActive(true);
+        setTimeout(() => setP2SpecialActive(false), 1000);
+      }
 
-      // Draw
-      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      
-      // Draw Background (Simple Stage)
-      drawBackground(ctx);
+      setP1SM(p1.smMeter);
+      setP2SM(p2.smMeter);
+      setP1Combo(p1.comboCount);
+      setP2Combo(p2.comboCount);
 
-      p1.draw(ctx);
-      p2.draw(ctx);
-      
-      // Draw Sparks
+      // Win Condition
+      if (p1.health <= 0 || p2.health <= 0) {
+        if (p1.health <= 0) {
+          setGameOver('KO! Hang Jebat Wins!');
+          p2.state = PlayerState.WIN;
+        } else {
+          setGameOver('KO! Hang Tuah Wins!');
+          p1.state = PlayerState.WIN;
+        }
+        music.stop();
+      }
+    } else if (gameOver) {
+      p1.update(CANVAS_HEIGHT, new Set(), p2);
+      p2.update(CANVAS_HEIGHT, new Set(), p1);
+    }
+
+    // Update Particles & Popups
+    setParticles(prev => prev.map(p => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, life: p.life - 1 })).filter(p => p.life > 0));
+    setDamagePopUps(prev => prev.map(d => ({ ...d, y: d.y - 1, life: d.life - 1 })).filter(d => d.life > 0));
+    if (screenShake > 0) setScreenShake(prev => prev * 0.9);
+
+    // Draw
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    ctx.save();
+    // Screen Shake & Camera Zoom
+    const shakeX = (Math.random() - 0.5) * screenShake;
+    const shakeY = (Math.random() - 0.5) * screenShake;
+    ctx.translate(CANVAS_WIDTH/2 + shakeX, CANVAS_HEIGHT/2 + shakeY);
+    ctx.scale(cameraZoom, cameraZoom);
+    ctx.translate(-CANVAS_WIDTH/2, -CANVAS_HEIGHT/2);
+
+    // Draw Background
+    drawBackground(ctx, parallaxX);
+
+    p1.draw(ctx, CANVAS_HEIGHT);
+    p2.draw(ctx, CANVAS_HEIGHT);
+    
+    // Draw Particles
+    particles.forEach(p => {
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.life / 40;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    // Draw Damage Popups
+    damagePopUps.forEach(d => {
       ctx.fillStyle = 'white';
-      sparks.forEach(s => {
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, 2, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.restore();
+      ctx.font = 'bold 20px Inter';
+      ctx.globalAlpha = d.life / 40;
+      ctx.fillText(`-${d.damage}`, d.x, d.y);
+    });
+    ctx.globalAlpha = 1;
 
-      animationFrameId = requestAnimationFrame(gameLoop);
-    };
+    ctx.restore();
+
+    animationFrameId = requestAnimationFrame(gameLoop);
+  };
 
     timerInterval = setInterval(() => {
-      setTimer((prev) => {
-        if (prev <= 0) {
-          determineWinner();
-          return 0;
-        }
-        return prev - 1;
-      });
+      if (gameState === 'playing' && !gameOver) {
+        setTimer((prev) => {
+          if (prev <= 0) {
+            determineWinner();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }
     }, 1000);
 
     animationFrameId = requestAnimationFrame(gameLoop);
@@ -433,7 +586,7 @@ const Game: React.FC = () => {
       clearInterval(timerInterval);
       music.stop();
     };
-  }, [gameOver]);
+  }, [gameOver, gameState, imagesLoaded]);
 
   const createSparks = (x: number, y: number) => {
     const newSparks = Array.from({ length: 10 }).map(() => ({
@@ -450,12 +603,12 @@ const Game: React.FC = () => {
     music.stop();
     if (p1.health === p2.health) setGameOver('Draw!');
     else if (p1.health > p2.health) {
-      setGameOver('Blue Bolt Wins!');
-      speak('Blue Bolt Wins!');
+      setGameOver('KO! Hang Tuah Wins!');
+      speak('K O. Hang Tuah Wins!');
     }
     else {
-      setGameOver('Scarlet Strike Wins!');
-      speak('Scarlet Strike Wins!');
+      setGameOver('KO! Hang Jebat Wins!');
+      speak('K O. Hang Jebat Wins!');
     }
   };
 
@@ -469,83 +622,186 @@ const Game: React.FC = () => {
     );
   };
 
-  const drawBackground = (ctx: CanvasRenderingContext2D) => {
-    // Sky
-    const skyGradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
-    skyGradient.addColorStop(0, '#87CEEB'); // Sky blue
-    skyGradient.addColorStop(1, '#E0F6FF');
-    ctx.fillStyle = skyGradient;
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    // Mount Fuji
-    ctx.fillStyle = '#4A5D7E';
-    ctx.beginPath();
-    ctx.moveTo(CANVAS_WIDTH * 0.2, CANVAS_HEIGHT - 50);
-    ctx.lineTo(CANVAS_WIDTH * 0.5, 150);
-    ctx.lineTo(CANVAS_WIDTH * 0.8, CANVAS_HEIGHT - 50);
-    ctx.fill();
-
-    // Snow cap
-    ctx.fillStyle = 'white';
-    ctx.beginPath();
-    ctx.moveTo(CANVAS_WIDTH * 0.43, 220);
-    ctx.lineTo(CANVAS_WIDTH * 0.5, 150);
-    ctx.lineTo(CANVAS_WIDTH * 0.57, 220);
-    ctx.bezierCurveTo(CANVAS_WIDTH * 0.5, 250, CANVAS_WIDTH * 0.45, 230, CANVAS_WIDTH * 0.43, 220);
-    ctx.fill();
-
-    // Clouds
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    const drawCloud = (x: number, y: number, size: number) => {
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, Math.PI * 2);
-      ctx.arc(x + size * 0.6, y - size * 0.2, size * 0.8, 0, Math.PI * 2);
-      ctx.arc(x + size * 1.2, y, size * 0.7, 0, Math.PI * 2);
-      ctx.fill();
-    };
-    drawCloud(100, 100, 30);
-    drawCloud(700, 120, 40);
-    drawCloud(400, 80, 25);
-
-    // Ground (Dojo Floor)
-    ctx.fillStyle = '#8B4513'; // Brown wood
-    ctx.fillRect(0, CANVAS_HEIGHT - 50, CANVAS_WIDTH, 50);
+  const drawBackground = (ctx: CanvasRenderingContext2D, parallaxX: number) => {
+    ctx.save();
     
-    // Wood grain lines
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+    // Distant Background (Sky/Mountains) - Slowest parallax
+    ctx.translate(parallaxX * 0.2, 0);
+    if (images.current?.bg && images.current.bg.complete && images.current.bg.naturalWidth !== 0) {
+      ctx.drawImage(images.current.bg, -50, 0, CANVAS_WIDTH + 100, CANVAS_HEIGHT);
+    } else {
+      // Sky
+      const skyGradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+      skyGradient.addColorStop(0, '#FF7E5F'); // Sunset orange
+      skyGradient.addColorStop(1, '#FEB47B');
+      ctx.fillStyle = skyGradient;
+      ctx.fillRect(-50, 0, CANVAS_WIDTH + 100, CANVAS_HEIGHT);
+
+      // Distant Mountains (Blurred)
+      ctx.filter = 'blur(4px)';
+      ctx.fillStyle = '#4A5D7E';
+      ctx.beginPath();
+      ctx.moveTo(CANVAS_WIDTH * 0.1, CANVAS_HEIGHT - 120);
+      ctx.lineTo(CANVAS_WIDTH * 0.4, 200);
+      ctx.lineTo(CANVAS_WIDTH * 0.7, CANVAS_HEIGHT - 120);
+      ctx.fill();
+      ctx.filter = 'none';
+    }
+    ctx.restore();
+
+    // Foreground (Ground) - No parallax for grounding
+    const groundGradient = ctx.createLinearGradient(0, CANVAS_HEIGHT - 120, 0, CANVAS_HEIGHT);
+    groundGradient.addColorStop(0, '#8B4513'); // Dark brown
+    groundGradient.addColorStop(1, '#5D2E0C'); // Even darker for depth
+    ctx.fillStyle = groundGradient;
+    ctx.fillRect(0, CANVAS_HEIGHT - 120, CANVAS_WIDTH, 120);
+    
+    // Ground Texture Variation
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
     ctx.lineWidth = 2;
-    for (let i = 0; i < CANVAS_HEIGHT; i += 10) {
-      if (i > CANVAS_HEIGHT - 50) {
+    for (let i = 0; i < CANVAS_HEIGHT; i += 12) {
+      if (i > CANVAS_HEIGHT - 120) {
         ctx.beginPath();
         ctx.moveTo(0, i);
         ctx.lineTo(CANVAS_WIDTH, i);
         ctx.stroke();
       }
     }
-    
-    // Distant Pagoda
-    ctx.fillStyle = '#2D3436';
-    const pagodaX = 850;
-    const pagodaY = CANVAS_HEIGHT - 50;
-    for(let i=0; i<3; i++) {
-      ctx.fillRect(pagodaX - 20 + i*5, pagodaY - 40 - i*30, 40 - i*10, 10);
-      ctx.beginPath();
-      ctx.moveTo(pagodaX - 30 + i*5, pagodaY - 30 - i*30);
-      ctx.lineTo(pagodaX + 30 - i*5, pagodaY - 30 - i*30);
-      ctx.lineTo(pagodaX, pagodaY - 50 - i*30);
-      ctx.fill();
-    }
+
+    // Foreground Darkening
+    const foreGradient = ctx.createLinearGradient(0, CANVAS_HEIGHT - 60, 0, CANVAS_HEIGHT);
+    foreGradient.addColorStop(0, 'rgba(0,0,0,0)');
+    foreGradient.addColorStop(1, 'rgba(0,0,0,0.3)');
+    ctx.fillStyle = foreGradient;
+    ctx.fillRect(0, CANVAS_HEIGHT - 60, CANVAS_WIDTH, 60);
   };
 
   const resetGame = () => {
     setGameOver(null);
     setP1Health(100);
     setP2Health(100);
-    setP1Special(0);
-    setP2Special(0);
+    setP1DamageTrail(100);
+    setP2DamageTrail(100);
+    setP1SM(0);
+    setP2SM(0);
     setP1Combo(0);
     setP2Combo(0);
     setTimer(99);
+    setRoundIntro('ROUND 1');
+    setTimeout(() => {
+      setRoundIntro(null);
+      setFightSplash(true);
+      speak("Fight!", () => music.start());
+      setTimeout(() => setFightSplash(false), 1000);
+    }, 2000);
+    
+    if (fightersRef.current) {
+      const { p1, p2 } = fightersRef.current;
+      p1.health = 100;
+      p2.health = 100;
+      p1.smMeter = 0;
+      p2.smMeter = 0;
+      p1.position = { x: 100, y: 0 };
+      p2.position = { x: 800, y: 0 };
+      p1.state = PlayerState.IDLE;
+      p2.state = PlayerState.IDLE;
+    }
+  };
+
+  const goToMainMenu = () => {
+    setGameState('modeSelect');
+    setGameOver(null);
+    music.stop();
+  };
+
+  const aiActionBuffer = useRef<{key: string, timer: number}[]>([]);
+
+  const updateAI = (ai: Fighter, player: Fighter) => {
+    const config = DIFFICULTY_SETTINGS[aiDifficulty];
+    const dist = Math.abs(ai.position.x - player.position.x);
+    const aiCenter = ai.position.x + ai.width / 2;
+    const playerCenter = player.position.x + player.width / 2;
+
+    // Clear previous AI keys
+    const aiKeys = ai.keys;
+    const keysToClear = [aiKeys.left, aiKeys.right, aiKeys.up, aiKeys.down, aiKeys.punch, aiKeys.kick, aiKeys.block, aiKeys.special];
+    keysToClear.forEach(k => keysPressed.current.delete(k));
+
+    // Process action buffer
+    aiActionBuffer.current = aiActionBuffer.current.filter(action => {
+      action.timer--;
+      if (action.timer <= 0) {
+        keysPressed.current.add(action.key);
+        return false;
+      }
+      return true;
+    });
+
+    const queueAction = (key: string) => {
+      // Don't queue if already in buffer or if AI is already attacking
+      if (aiActionBuffer.current.some(a => a.key === key) || ai.isAttacking) return;
+      aiActionBuffer.current.push({ key, timer: config.reactionTime });
+    };
+
+    // Movement & Aggression
+    if (!ai.isAttacking && ai.hitTimer <= 0) {
+      if (Math.random() < config.aggression) {
+        if (aiCenter < playerCenter - 80) {
+          keysPressed.current.add(aiKeys.right);
+        } else if (aiCenter > playerCenter + 80) {
+          keysPressed.current.add(aiKeys.left);
+        }
+      }
+    }
+
+    // Defense: Block if player is attacking and close
+    if (player.isAttacking && dist < 200) {
+      if (Math.random() < config.defenseTiming) {
+        queueAction(aiKeys.block);
+      }
+    }
+
+    // Attack
+    if (dist < 160 && !ai.isAttacking && ai.hitTimer <= 0) {
+      if (Math.random() < config.attackFrequency) {
+        // SM usage
+        if (ai.smMeter >= 100 && Math.random() < config.specialUsage) {
+          queueAction(aiKeys.special);
+        } else {
+          // Random punch or kick
+          if (Math.random() > 0.4) {
+            queueAction(aiKeys.punch);
+          } else {
+            queueAction(aiKeys.kick);
+          }
+        }
+      }
+    }
+
+    // Random Jump
+    if (dist < 300 && Math.random() < 0.015) {
+      queueAction(aiKeys.up);
+    }
+
+    // Difficulty-based SM meter boost for AI
+    if (ai.smMeter < 100) {
+      ai.smMeter += (config.aggression * 0.25); 
+    }
+  };
+
+  const selectMode = (mode: GameMode) => {
+    setGameMode(mode);
+    if (mode === '2P') {
+      setGameState('playing');
+      speak("Fight!", () => music.start());
+    } else {
+      setGameState('levelSelect');
+    }
+  };
+
+  const selectLevel = (level: Difficulty) => {
+    setAiDifficulty(level);
+    setGameState('playing');
     speak("Fight!", () => music.start());
   };
 
@@ -554,68 +810,116 @@ const Game: React.FC = () => {
     else keysPressed.current.delete(key);
   };
 
+  if (!imagesLoaded) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-black text-white font-black italic uppercase tracking-widest">
+        Loading Warriors...
+      </div>
+    );
+  }
+
   return (
     <div 
       ref={containerRef}
       className="relative w-full h-auto max-w-5xl mx-auto bg-black sm:rounded-2xl overflow-hidden shadow-2xl sm:border-4 border-zinc-800 touch-none select-none aspect-video max-h-[85vh] landscape:max-h-[95vh] sm:landscape:max-h-none"
     >
       {/* UI Overlay */}
-      <div className="absolute top-0 left-0 w-full p-4 sm:p-6 flex justify-between items-start pointer-events-none z-10">
+      <div className="absolute top-0 left-0 w-full p-6 sm:p-8 flex justify-between items-start pointer-events-none z-10 mt-6">
         {/* P1 Health */}
-        <div className="w-1/3">
-          <div className="flex justify-between mb-1">
-            <span className="text-blue-400 font-bold tracking-tighter uppercase italic text-xs sm:text-base">Blue Bolt</span>
-            <span className="text-white font-mono text-xs sm:text-base">{Math.ceil(p1Health)}%</span>
+        <div className="w-[40%]">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-lg bg-blue-900/50 border-2 border-blue-400 overflow-hidden shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+               <User className="w-full h-full text-blue-400 p-1" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-blue-400 font-black tracking-tighter uppercase italic text-sm sm:text-lg drop-shadow-lg">Hang Tuah</span>
+              <div className="flex gap-1">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className={`w-3 h-3 rounded-full border border-yellow-500/50 ${i <= 2 ? 'bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.6)]' : 'bg-zinc-800'}`} />
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="h-4 sm:h-6 bg-zinc-900 border border-zinc-700 rounded-sm overflow-hidden">
+          <div className="relative h-5 sm:h-7 bg-zinc-800 border-2 border-zinc-700 rounded-sm overflow-hidden shadow-2xl">
+            {/* Damage Trail */}
             <div 
-              className="h-full bg-blue-500 transition-all duration-200" 
+              className="absolute top-0 left-0 h-full bg-white transition-all duration-500" 
+              style={{ width: `${p1DamageTrail}%` }}
+            />
+            {/* Health Fill */}
+            <div 
+              className={`absolute top-0 left-0 h-full transition-all duration-200 ${p1Health < 20 ? 'bg-red-500 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.8)]' : 'bg-gradient-to-r from-blue-600 to-blue-400'}`} 
               style={{ width: `${p1Health}%` }}
             />
           </div>
-          {/* Special Meter */}
-          <div className="mt-2 h-1.5 sm:h-2 bg-zinc-900 border border-zinc-800 rounded-full overflow-hidden w-1/2">
+          {/* SM Meter */}
+          <div className="mt-2 h-2 sm:h-3 bg-zinc-900 border border-zinc-800 rounded-full overflow-hidden w-2/3 shadow-inner">
             <div 
-              className={`h-full transition-all duration-200 ${p1Special >= 100 ? 'bg-yellow-400 animate-pulse' : 'bg-blue-300'}`}
-              style={{ width: `${p1Special}%` }}
+              className={`h-full transition-all duration-200 ${p1SM >= 100 ? 'bg-yellow-400 animate-pulse shadow-[0_0_15px_rgba(250,204,21,0.8)]' : 'bg-blue-400'}`}
+              style={{ width: `${p1SM}%` }}
             />
           </div>
           {p1Combo > 1 && (
-            <div className="mt-2 text-blue-400 font-black italic text-xl sm:text-3xl animate-bounce">
-              {p1Combo} HIT COMBO!
+            <div className="mt-4 flex flex-col items-start animate-in zoom-in duration-200">
+              <span className="text-blue-400 font-black italic text-4xl sm:text-6xl tracking-tighter drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]">
+                {Math.min(p1Combo, 99)}+
+              </span>
+              <span className="text-white font-black italic text-xl sm:text-2xl uppercase tracking-widest -mt-2">Hits</span>
             </div>
           )}
         </div>
 
         {/* Timer */}
-        <div className="bg-zinc-900 border-2 border-zinc-700 px-2 sm:px-4 py-1 sm:py-2 rounded-lg">
-          <span className="text-2xl sm:text-4xl font-mono font-bold text-yellow-500 tabular-nums">
-            {timer.toString().padStart(2, '0')}
-          </span>
+        <div className="relative flex items-center justify-center">
+          <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-zinc-900 border-4 border-yellow-600 flex items-center justify-center shadow-[0_0_30px_rgba(202,138,4,0.4)] overflow-hidden">
+            {/* Malay Ornamental Border (Simplified) */}
+            <div className="absolute inset-0 border-4 border-yellow-500/20 rounded-full animate-spin-slow" />
+            <span className={`text-3xl sm:text-5xl font-black text-yellow-500 tabular-nums z-10 ${timer < 10 ? 'text-red-500 animate-ping' : ''}`}>
+              {timer}
+            </span>
+          </div>
         </div>
 
         {/* P2 Health */}
-        <div className="w-1/3 flex flex-col items-end">
-          <div className="flex justify-between w-full mb-1">
-            <span className="text-white font-mono text-xs sm:text-base">{Math.ceil(p2Health)}%</span>
-            <span className="text-red-400 font-bold tracking-tighter uppercase italic text-xs sm:text-base">Scarlet Strike</span>
+        <div className="w-[40%] flex flex-col items-end">
+          <div className="flex items-center gap-3 mb-2 flex-row-reverse">
+            <div className="w-12 h-12 rounded-lg bg-red-900/50 border-2 border-red-400 overflow-hidden shadow-[0_0_15px_rgba(239,68,68,0.5)]">
+               <User className="w-full h-full text-red-400 p-1" />
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-red-400 font-black tracking-tighter uppercase italic text-sm sm:text-lg drop-shadow-lg">Hang Jebat</span>
+              <div className="flex gap-1 flex-row-reverse">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className={`w-3 h-3 rounded-full border border-yellow-500/50 ${i <= 2 ? 'bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.6)]' : 'bg-zinc-800'}`} />
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="h-4 sm:h-6 bg-zinc-900 border border-zinc-700 rounded-sm overflow-hidden w-full">
+          <div className="relative h-5 sm:h-7 bg-zinc-800 border-2 border-zinc-700 rounded-sm overflow-hidden w-full shadow-2xl">
+             {/* Damage Trail */}
+             <div 
+              className="absolute top-0 right-0 h-full bg-white transition-all duration-500" 
+              style={{ width: `${p2DamageTrail}%` }}
+            />
+            {/* Health Fill */}
             <div 
-              className="h-full bg-red-500 transition-all duration-200 ml-auto" 
+              className={`absolute top-0 right-0 h-full transition-all duration-200 ${p2Health < 20 ? 'bg-red-500 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.8)]' : 'bg-gradient-to-l from-red-600 to-red-400'}`} 
               style={{ width: `${p2Health}%` }}
             />
           </div>
-          {/* Special Meter */}
-          <div className="mt-2 h-1.5 sm:h-2 bg-zinc-900 border border-zinc-800 rounded-full overflow-hidden w-1/2">
+          {/* SM Meter */}
+          <div className="mt-2 h-2 sm:h-3 bg-zinc-900 border border-zinc-800 rounded-full overflow-hidden w-2/3 shadow-inner">
             <div 
-              className={`h-full transition-all duration-200 ml-auto ${p2Special >= 100 ? 'bg-yellow-400 animate-pulse' : 'bg-red-300'}`}
-              style={{ width: `${p2Special}%` }}
+              className={`h-full transition-all duration-200 ml-auto ${p2SM >= 100 ? 'bg-yellow-400 animate-pulse shadow-[0_0_15px_rgba(250,204,21,0.8)]' : 'bg-red-400'}`}
+              style={{ width: `${p2SM}%` }}
             />
           </div>
           {p2Combo > 1 && (
-            <div className="mt-2 text-red-400 font-black italic text-xl sm:text-3xl animate-bounce text-right">
-              {p2Combo} HIT COMBO!
+            <div className="mt-4 flex flex-col items-end animate-in zoom-in duration-200">
+              <span className="text-red-400 font-black italic text-4xl sm:text-6xl tracking-tighter drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]">
+                {Math.min(p2Combo, 99)}+
+              </span>
+              <span className="text-white font-black italic text-xl sm:text-2xl uppercase tracking-widest -mt-2">Hits</span>
             </div>
           )}
         </div>
@@ -628,6 +932,89 @@ const Game: React.FC = () => {
         height={CANVAS_HEIGHT}
         className="w-full h-auto block bg-zinc-900"
       />
+
+      {/* Mode Select Screen */}
+      {gameState === 'modeSelect' && (
+        <div className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center z-[100] backdrop-blur-xl pointer-events-auto animate-in fade-in duration-500">
+          <div className="flex items-center justify-center gap-4 mb-6 animate-pulse">
+            <svg className="text-yellow-500 w-16 h-16 rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+              <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+              <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+              <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+            </svg>
+            <svg className="text-yellow-500 w-16 h-16 -rotate-90 scale-x-[-1]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+              <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+              <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+              <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+            </svg>
+          </div>
+          <h2 className="text-5xl sm:text-7xl font-black text-white italic uppercase tracking-tighter mb-12 text-center drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+            Select Mode
+          </h2>
+          <div className="flex flex-col sm:flex-row gap-6 w-full max-w-2xl px-8">
+            <button
+              onClick={() => selectMode('1P')}
+              className="flex-1 group relative px-8 py-6 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase italic tracking-widest rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(37,99,235,0.3)] flex flex-col items-center gap-4 border-b-4 border-blue-800"
+            >
+              <User className="w-12 h-12" />
+              <span className="text-2xl">1 Player</span>
+              <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-[10px] px-2 py-1 rounded-full font-bold animate-bounce">VS AI</div>
+            </button>
+            <button
+              onClick={() => selectMode('2P')}
+              className="flex-1 group relative px-8 py-6 bg-red-600 hover:bg-red-500 text-white font-black uppercase italic tracking-widest rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(220,38,38,0.3)] flex flex-col items-center gap-4 border-b-4 border-red-800"
+            >
+              <Users className="w-12 h-12" />
+              <span className="text-2xl">2 Player</span>
+              <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-[10px] px-2 py-1 rounded-full font-bold animate-bounce">LOCAL</div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Level Select Screen */}
+      {gameState === 'levelSelect' && (
+        <div className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center z-[100] backdrop-blur-xl pointer-events-auto animate-in fade-in duration-500 overflow-y-auto py-12">
+          <Zap className="text-yellow-500 w-16 h-16 mb-4 animate-pulse" />
+          <h2 className="text-4xl sm:text-6xl font-black text-white italic uppercase tracking-tighter mb-8 text-center drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+            Select Level
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-5xl px-8">
+            {(Object.keys(DIFFICULTY_SETTINGS) as Difficulty[]).map((level) => (
+              <button
+                key={level}
+                onClick={() => selectLevel(level)}
+                className={`group relative px-6 py-4 font-black uppercase italic tracking-widest rounded-xl transition-all hover:scale-105 active:scale-95 border-b-4 flex flex-col items-center gap-2
+                  ${level === 'Beginner' ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-800 shadow-[0_0_30px_rgba(16,185,129,0.2)]' : ''}
+                  ${level === 'Easy' ? 'bg-cyan-600 hover:bg-cyan-500 border-cyan-800 shadow-[0_0_30px_rgba(6,182,212,0.2)]' : ''}
+                  ${level === 'Medium' ? 'bg-blue-600 hover:bg-blue-500 border-blue-800 shadow-[0_0_30px_rgba(37,99,235,0.2)]' : ''}
+                  ${level === 'Hard' ? 'bg-orange-600 hover:bg-orange-500 border-orange-800 shadow-[0_0_30px_rgba(249,115,22,0.2)]' : ''}
+                  ${level === 'Extreme' ? 'bg-red-600 hover:bg-red-500 border-red-800 shadow-[0_0_30px_rgba(220,38,38,0.2)]' : ''}
+                  ${level === 'Insane' ? 'bg-purple-600 hover:bg-purple-500 border-purple-800 shadow-[0_0_30px_rgba(147,51,234,0.2)]' : ''}
+                  ${level === 'Impossible' ? 'bg-zinc-800 hover:bg-zinc-700 border-zinc-950 shadow-[0_0_30px_rgba(0,0,0,0.5)]' : ''}
+                `}
+              >
+                <span className="text-xl text-white">{level}</span>
+                <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1">
+                  <div 
+                    className="h-full bg-white transition-all duration-500" 
+                    style={{ width: `${((Object.keys(DIFFICULTY_SETTINGS).indexOf(level) + 1) / Object.keys(DIFFICULTY_SETTINGS).length) * 100}%` }} 
+                  />
+                </div>
+              </button>
+            ))}
+          </div>
+          <button 
+            onClick={() => setGameState('modeSelect')}
+            className="mt-12 text-zinc-500 hover:text-white uppercase tracking-widest text-sm transition-colors flex items-center gap-2"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back to Mode Select
+          </button>
+        </div>
+      )}
 
       {/* Touch Controls - Visible on touch devices (mobile/tablet), hidden on non-touch desktop */}
       {isTouchDevice && (
@@ -651,96 +1038,156 @@ const Game: React.FC = () => {
           )}
 
           {/* Action Buttons P1 (Bottom Far Left) */}
-          <div className="absolute bottom-6 left-6 sm:bottom-8 sm:left-8 flex gap-2 pointer-events-auto">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="absolute bottom-[18%] left-8 sm:bottom-[20%] sm:left-12 flex gap-2 pointer-events-auto">
+            <div className="grid grid-cols-2 gap-4">
               <button 
                 onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('f', true); } }} 
                 onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('f', false); } }}
-                className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-500/50 backdrop-blur-md border-2 border-blue-400 rounded-full flex items-center justify-center text-white active:bg-blue-600 font-black text-xl shadow-2xl"
+                className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-600/40 backdrop-blur-md border-2 border-blue-400 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform font-black text-2xl shadow-[0_0_20px_rgba(37,99,235,0.3)]"
               >P</button>
               <button 
                 onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('g', true); } }} 
                 onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('g', false); } }}
-                className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-500/50 backdrop-blur-md border-2 border-blue-400 rounded-full flex items-center justify-center text-white active:bg-blue-600 font-black text-xl shadow-2xl"
+                className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-600/40 backdrop-blur-md border-2 border-blue-400 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform font-black text-2xl shadow-[0_0_20px_rgba(37,99,235,0.3)]"
               >K</button>
               <button 
                 onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('v', true); } }} 
                 onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('v', false); } }}
-                className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-500/50 backdrop-blur-md border-2 border-blue-400 rounded-full flex items-center justify-center text-white active:bg-blue-600 font-black text-xl shadow-2xl"
+                className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-600/40 backdrop-blur-md border-2 border-blue-400 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform font-black text-2xl shadow-[0_0_20px_rgba(37,99,235,0.3)]"
               >B</button>
               <button 
                 onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('r', true); } }} 
                 onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('r', false); } }}
-                className={`w-14 h-14 sm:w-16 sm:h-16 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-xs shadow-2xl ${p1Special >= 100 ? 'bg-yellow-500 border-yellow-300 text-white animate-pulse shadow-[0_0_20px_rgba(234,179,8,0.6)]' : 'bg-white/20 border-white/30 text-white/60'}`}
-              >SP</button>
+                className={`w-16 h-16 sm:w-20 sm:h-20 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-sm shadow-2xl transition-all active:scale-90 ${p1SM >= 100 ? 'bg-blue-800 border-blue-400 text-white animate-pulse shadow-[0_0_30px_rgba(37,99,235,0.6)]' : 'bg-white/10 border-white/20 text-white/40'}`}
+              >SM</button>
             </div>
           </div>
 
           {/* Action Buttons P2 (Bottom Far Right) */}
-          <div className="absolute bottom-6 right-6 sm:bottom-8 sm:right-8 flex gap-2 pointer-events-auto">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="absolute bottom-[18%] right-8 sm:bottom-[20%] sm:right-12 flex gap-2 pointer-events-auto">
+            <div className="grid grid-cols-2 gap-4">
               <button 
                 onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('k', true); } }} 
                 onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('k', false); } }}
-                className="w-14 h-14 sm:w-16 sm:h-16 bg-red-500/50 backdrop-blur-md border-2 border-red-400 rounded-full flex items-center justify-center text-white active:bg-red-600 font-black text-xl shadow-2xl"
+                className="w-16 h-16 sm:w-20 sm:h-20 bg-red-600/40 backdrop-blur-md border-2 border-red-400 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform font-black text-2xl shadow-[0_0_20px_rgba(220,38,38,0.3)]"
               >P</button>
               <button 
                 onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('l', true); } }} 
                 onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('l', false); } }}
-                className="w-14 h-14 sm:w-16 sm:h-16 bg-red-500/50 backdrop-blur-md border-2 border-red-400 rounded-full flex items-center justify-center text-white active:bg-red-600 font-black text-xl shadow-2xl"
+                className="w-16 h-16 sm:w-20 sm:h-20 bg-red-600/40 backdrop-blur-md border-2 border-red-400 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform font-black text-2xl shadow-[0_0_20px_rgba(220,38,38,0.3)]"
               >K</button>
               <button 
                 onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('m', true); } }} 
                 onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('m', false); } }}
-                className="w-14 h-14 sm:w-16 sm:h-16 bg-red-500/50 backdrop-blur-md border-2 border-red-400 rounded-full flex items-center justify-center text-white active:bg-red-600 font-black text-xl shadow-2xl"
+                className="w-16 h-16 sm:w-20 sm:h-20 bg-red-600/40 backdrop-blur-md border-2 border-red-400 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform font-black text-2xl shadow-[0_0_20px_rgba(220,38,38,0.3)]"
               >B</button>
               <button 
                 onTouchStart={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('p', true); } }} 
                 onTouchEnd={(e) => { if(!gameOver) { e.preventDefault(); handleTouch('p', false); } }}
-                className={`w-14 h-14 sm:w-16 sm:h-16 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-xs shadow-2xl ${p2Special >= 100 ? 'bg-yellow-500 border-yellow-300 text-white animate-pulse shadow-[0_0_20px_rgba(234,179,8,0.6)]' : 'bg-white/20 border-white/30 text-white/60'}`}
-              >SP</button>
+                className={`w-16 h-16 sm:w-20 sm:h-20 backdrop-blur-md border-2 rounded-full flex items-center justify-center font-black text-sm shadow-2xl transition-all active:scale-90 ${p2SM >= 100 ? 'bg-red-800 border-red-400 text-white animate-pulse shadow-[0_0_30px_rgba(220,38,38,0.6)]' : 'bg-white/10 border-white/20 text-white/40'}`}
+              >SM</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Round Intro / Fight Splash */}
+      {roundIntro && (
+        <div className="absolute inset-0 flex items-center justify-center z-[110] pointer-events-none">
+          <h1 className="text-8xl sm:text-9xl font-black text-white italic uppercase tracking-tighter animate-in zoom-in duration-300 drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]">
+            {roundIntro}
+          </h1>
+        </div>
+      )}
+      {fightSplash && (
+        <div className="absolute inset-0 flex items-center justify-center z-[110] pointer-events-none">
+          <h1 className="text-9xl sm:text-[12rem] font-black text-red-600 italic uppercase tracking-tighter animate-bounce drop-shadow-[0_0_50px_rgba(220,38,38,0.8)]">
+            FIGHT!
+          </h1>
+        </div>
+      )}
+
+      {/* Special Move Overlays */}
+      {p1SpecialActive && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+          <div className="animate-bounce bg-blue-600/80 text-white px-8 py-4 rounded-xl border-4 border-blue-400 text-4xl font-black italic tracking-tighter shadow-[0_0_50px_rgba(37,99,235,0.8)]">
+            SILAT STRIKE
+          </div>
+        </div>
+      )}
+      {p2SpecialActive && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+          <div className="animate-bounce bg-red-600/80 text-white px-8 py-4 rounded-xl border-4 border-red-400 text-4xl font-black italic tracking-tighter shadow-[0_0_50px_rgba(220,38,38,0.8)]">
+            KERIS WRATH
           </div>
         </div>
       )}
 
       {/* Game Over Screen */}
       {gameOver && (
-        <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-[100] backdrop-blur-md pointer-events-auto">
-          <Trophy className="text-yellow-500 w-16 h-16 sm:w-20 sm:h-20 mb-4 animate-bounce" />
-          <h2 className="text-3xl sm:text-6xl font-black text-white italic uppercase tracking-tighter mb-8 text-center px-4">
+        <div className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center z-[100] backdrop-blur-xl pointer-events-auto animate-in zoom-in duration-300">
+          <div className="relative mb-6">
+            <Trophy className="text-yellow-500 w-20 h-20 sm:w-28 sm:h-28 animate-bounce" />
+            <div className="absolute -top-4 -right-4 bg-red-600 text-white font-black italic text-3xl px-6 py-2 rounded-lg shadow-[0_0_30px_rgba(220,38,38,0.8)] rotate-12 animate-pulse">
+              KO
+            </div>
+          </div>
+          
+          <h2 className="text-4xl sm:text-7xl font-black text-white italic uppercase tracking-tighter mb-4 text-center px-4 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">
             {gameOver}
           </h2>
-          <button
-            onClick={resetGame}
-            className="group relative px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black uppercase italic tracking-widest rounded-full transition-all hover:scale-110 active:scale-95 shadow-[0_0_30px_rgba(220,38,38,0.5)] flex items-center gap-3"
-          >
-            <RotateCcw className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
-            Rematch
-          </button>
+
+          {/* Match Stats */}
+          <div className="grid grid-cols-2 gap-8 mb-12 w-full max-w-md px-8">
+            <div className="flex flex-col items-center p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl">
+              <span className="text-zinc-500 text-xs uppercase font-bold">Max Combo</span>
+              <span className="text-blue-400 text-3xl font-black italic">{Math.max(p1Combo, 0)}</span>
+            </div>
+            <div className="flex flex-col items-center p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl">
+              <span className="text-zinc-500 text-xs uppercase font-bold">Max Combo</span>
+              <span className="text-red-400 text-3xl font-black italic">{Math.max(p2Combo, 0)}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={resetGame}
+              className="group relative px-10 py-5 bg-red-600 hover:bg-red-500 text-white font-black uppercase italic tracking-widest rounded-full transition-all hover:scale-110 active:scale-95 shadow-[0_0_40px_rgba(220,38,38,0.5)] flex items-center gap-3 border-b-4 border-red-800"
+            >
+              <RotateCcw className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
+              Rematch
+            </button>
+            <button
+              onClick={goToMainMenu}
+              className="group relative px-10 py-5 bg-zinc-800 hover:bg-zinc-700 text-white font-black uppercase italic tracking-widest rounded-full transition-all hover:scale-110 active:scale-95 shadow-2xl flex items-center gap-3 border-b-4 border-zinc-950"
+            >
+              <Home className="w-6 h-6" />
+              Main Menu
+            </button>
+          </div>
         </div>
       )}
 
       {/* Controls Legend */}
       <div className="bg-zinc-900 p-4 border-t border-zinc-800 grid grid-cols-2 gap-8">
         <div className="space-y-1">
-          <h3 className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-2">Blue Bolt Controls</h3>
+          <h3 className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-2">Hang Tuah Controls</h3>
           <div className="flex gap-4 text-[10px] text-zinc-400">
             <span><strong className="text-white">WASD</strong> Move/Jump</span>
             <span><strong className="text-white">F</strong> Punch</span>
             <span><strong className="text-white">G</strong> Kick</span>
             <span><strong className="text-white">V</strong> Block</span>
-            <span><strong className="text-white">R</strong> Special</span>
+            <span><strong className="text-white">R</strong> SM</span>
           </div>
         </div>
         <div className="space-y-1 text-right">
-          <h3 className="text-red-400 text-xs font-bold uppercase tracking-widest mb-2">Scarlet Strike Controls</h3>
+          <h3 className="text-red-400 text-xs font-bold uppercase tracking-widest mb-2">Hang Jebat Controls</h3>
           <div className="flex gap-4 justify-end text-[10px] text-zinc-400">
             <span><strong className="text-white">Arrows</strong> Move/Jump</span>
             <span><strong className="text-white">K</strong> Punch</span>
             <span><strong className="text-white">L</strong> Kick</span>
             <span><strong className="text-white">M</strong> Block</span>
-            <span><strong className="text-white">P</strong> Special</span>
+            <span><strong className="text-white">P</strong> SM</span>
           </div>
         </div>
       </div>
