@@ -179,9 +179,9 @@ const Game: React.FC = () => {
 
     // Using high-quality placeholders for now. 
     // User should replace these with their actual sprite URLs.
-    p1Img.src = 'https://raw.githubusercontent.com/fksensei2869/Nuha-Fighter/refs/heads/main/public/HangTuahfixed1.png';
-    p2Img.src = 'https://raw.githubusercontent.com/fksensei2869/Nuha-Fighter/refs/heads/main/public/HangJebatfixed1.png';
-    bgImg.src = 'https://raw.githubusercontent.com/fksensei2869/Nuha-Fighter/main/public/A_cinematic_2d_fighting_game_background_stage_a_tr_delpmaspu.png';
+    p1Img.src = 'https://raw.githubusercontent.com/fksensei2869/Nuha-Fighter/refs/heads/main/Public/HangTuahfixed1.png';
+    p2Img.src = 'https://raw.githubusercontent.com/fksensei2869/Nuha-Fighter/refs/heads/main/Public/HangJebatfixed1.png';
+    bgImg.src = 'https://raw.githubusercontent.com/fksensei2869/Nuha-Fighter/refs/heads/main/Public/Kampong.png';
   }, []);
 
   useEffect(() => {
